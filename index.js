@@ -8,42 +8,29 @@ app.use(express.json());
 app.use(cors());
 app.use(express.static('.'));
 
-// Tu llave de Gemini
-const genAI = new GoogleGenerativeAI("AIzaSyDNAPOruF3aszRV0xfyneTpSAG4m0S9hRY");
+// 1. TU LLAVE DE GEMINI (Ya la puse aquí)
+const genAI = new GoogleGenerativeAI("AIzaSyD8sJ0bZHZDdFPUb-3jgjL784k4nwwHpgw");
 
-// Ruta para el chat
+// 2. SERVIR EL CHAT (index.html)
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Ruta de despertar
-app.get('/keep-alive', (req, res) => res.send("OK"));
-
-// Lógica de la IA corregida
+// 3. PROCESAR EL CHAT
 app.post('/chat', async (req, res) => {
   try {
-    // Usamos el modelo estable 1.5 Flash
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-    
     const result = await model.generateContent(req.body.mensaje);
     const response = await result.response;
-    const text = response.text();
-    
-    res.json({ respuesta: text });
+    res.json({ respuesta: response.text() });
   } catch (e) {
-    console.error("Error:", e);
-    // Intento de respaldo con gemini-pro si el flash falla
-    try {
-        const modelPro = genAI.getGenerativeModel({ model: "gemini-pro" });
-        const resPro = await modelPro.generateContent(req.body.mensaje);
-        res.json({ respuesta: resPro.response.text() });
-    } catch (e2) {
-        res.status(500).json({ respuesta: "Error de conexión con Google AI. Intenta de nuevo." });
-    }
+    console.error(e);
+    res.status(500).json({ respuesta: "Error: No pude conectar con la IA." });
   }
 });
 
-const PORT = process.env.PORT || 3000;
+// 4. ENCENDIDO PARA RENDER (Usa el puerto dinámico)
+const PORT = process.env.PORT || 10000;
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`✅ Servidor en puerto ${PORT}`);
+  console.log(`✅ Servidor médico funcionando en el puerto ${PORT}`);
 });
