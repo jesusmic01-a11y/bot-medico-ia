@@ -8,15 +8,13 @@ app.use(express.json());
 app.use(cors());
 app.use(express.static('.'));
 
-// 1. TU LLAVE DE GEMINI (Ya la puse aquí)
+// LLAVE DE GEMINI
 const genAI = new GoogleGenerativeAI("AIzaSyD8sJ0bZHZDdFPUb-3jgjL784k4nwwHpgw");
 
-// 2. SERVIR EL CHAT (index.html)
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// 3. PROCESAR EL CHAT
 app.post('/chat', async (req, res) => {
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
@@ -25,12 +23,14 @@ app.post('/chat', async (req, res) => {
     res.json({ respuesta: response.text() });
   } catch (e) {
     console.error(e);
-    res.status(500).json({ respuesta: "Error: No pude conectar con la IA." });
+    // Mensaje amigable si detecta el bloqueo de región
+    res.status(500).json({ 
+      respuesta: "Google AI no está disponible en tu región actual. Por favor, intenta usar un VPN conectado a EEUU." 
+    });
   }
 });
 
-// 4. ENCENDIDO PARA RENDER (Usa el puerto dinámico)
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`✅ Servidor médico funcionando en el puerto ${PORT}`);
+  console.log(`Servidor en puerto ${PORT}`);
 });
