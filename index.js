@@ -12,30 +12,37 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Este es un motor de búsqueda que permite usar IA gratis sin llaves
 app.post('/chat', async (req, res) => {
+  const mensajeUsuario = req.body.mensaje;
+
   try {
-    const response = await axios.post('https://api.duckduckgo.com/tiv', {
-      model: "gpt-4o-mini", // O un modelo compatible
-      messages: [
-        {role: "system", content: "Eres un médico. Responde corto."},
-        {role: "user", content: req.body.mensaje}
-      ]
-    });
+    // OPCIÓN 1: IA Gratuita (Llama 3 vía una API pública)
+    const response = await axios.get(`https://api.popcat.xyz/chatbot?msg=${encodeURIComponent(mensajeUsuario)}&owner=Doctor&botname=AsistenteMedico`);
     
-    res.json({ respuesta: response.data.choices[0].message.content });
+    if (response.data && response.data.response) {
+      return res.json({ respuesta: response.data.response });
+    }
+    
+    throw new Error("Fallo opción 1");
+
   } catch (e) {
-    // Si falla el anterior, usaremos un servidor de prueba de inteligencia artificial libre
     try {
-        const fallback = await axios.get(`https://api.simsimi.net/v2/?text=${encodeURIComponent(req.body.mensaje)}&lc=es`);
-        res.json({ respuesta: fallback.data.success });
+      // OPCIÓN 2: IA de respaldo (SimSimi - Muy estable en Venezuela)
+      const resFallback = await axios.get(`https://api.simsimi.net/v2/?text=${encodeURIComponent(mensajeUsuario)}&lc=es`);
+      
+      if (resFallback.data && resFallback.data.success) {
+        return res.json({ respuesta: resFallback.data.success });
+      }
+      
+      res.json({ respuesta: "Lo siento, mi conexión está lenta. ¿Puedes repetir?" });
+
     } catch (err) {
-        res.json({ respuesta: "Lo siento, la conexión con el cerebro de la IA está inestable. ¿Podrías intentar de nuevo?" });
+      res.json({ respuesta: "Error de conexión. Intenta escribir algo diferente." });
     }
   }
 });
 
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`✅ Servidor activo`);
+  console.log(`✅ Servidor activo en puerto ${PORT}`);
 });
