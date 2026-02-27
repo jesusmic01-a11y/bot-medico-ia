@@ -20,6 +20,7 @@ app.get('/keep-alive', (req, res) => {
 
 // Configuración de Gemini con tu llave proporcionada
 const genAI = new GoogleGenerativeAI("AIzaSyD8sJ0bZHZDdFPUb-3jgjL784k4nwwHpgw");
+
 app.post('/chat', async (req, res) => {
   try {
     const model = genAI.getGenerativeModel({ 
