@@ -1,6 +1,7 @@
 {
-  "name": "bot-medico",
+  "name": "bot-medico-final",
   "version": "1.0.0",
+  "description": "Bot medico sin bloqueos",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
@@ -8,6 +9,6 @@
   "dependencies": {
     "express": "^4.18.2",
     "cors": "^2.8.5",
-    "@google/generative-ai": "^0.11.0"
+    "axios": "^1.6.0"
   }
 }
