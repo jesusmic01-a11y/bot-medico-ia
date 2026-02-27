@@ -1,5 +1,5 @@
 const express = require('express');
-const axios = require('axios');
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 const path = require('path');
 const cors = require('cors');
 
@@ -8,41 +8,46 @@ app.use(express.json());
 app.use(cors());
 app.use(express.static('.'));
 
+// LLAVE DE GEMINI (Asegúrate de que sea una llave nueva creada con VPN si es posible)
+const genAI = new GoogleGenerativeAI("AIzaSyD8sJ0bZHZDdFPUb-3jgjL784k4nwwHpgw");
+
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 app.post('/chat', async (req, res) => {
-  const mensajeUsuario = req.body.mensaje;
-
   try {
-    // OPCIÓN 1: IA Gratuita (Llama 3 vía una API pública)
-    const response = await axios.get(`https://api.popcat.xyz/chatbot?msg=${encodeURIComponent(mensajeUsuario)}&owner=Doctor&botname=AsistenteMedico`);
+    // Forzamos el modelo 1.5-flash que es el más estable para conexiones internacionales
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+    const result = await model.generateContent({
+        contents: [{ role: "user", parts: [{ text: req.body.mensaje }] }],
+        generationConfig: {
+          maxOutputTokens: 1000,
+          temperature: 0.7,
+        }
+    });
+
+    const response = await result.response;
+    const text = response.text();
     
-    if (response.data && response.data.response) {
-      return res.json({ respuesta: response.data.response });
-    }
-    
-    throw new Error("Fallo opción 1");
+    res.json({ respuesta: text });
 
   } catch (e) {
-    try {
-      // OPCIÓN 2: IA de respaldo (SimSimi - Muy estable en Venezuela)
-      const resFallback = await axios.get(`https://api.simsimi.net/v2/?text=${encodeURIComponent(mensajeUsuario)}&lc=es`);
-      
-      if (resFallback.data && resFallback.data.success) {
-        return res.json({ respuesta: resFallback.data.success });
-      }
-      
-      res.json({ respuesta: "Lo siento, mi conexión está lenta. ¿Puedes repetir?" });
-
-    } catch (err) {
-      res.json({ respuesta: "Error de conexión. Intenta escribir algo diferente." });
+    console.error("DETALLE DEL ERROR:", e);
+    
+    // Si el error es de ubicación, te lo dirá aquí
+    if (e.message.includes("location") || e.message.includes("supported")) {
+        res.status(500).json({ 
+            respuesta: "Google detectó tu ubicación en Venezuela. Activa un VPN en tu navegador y recarga la página." 
+        });
+    } else {
+        res.status(500).json({ respuesta: "Error de conexión con Gemini: " + e.message });
     }
   }
 });
 
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`✅ Servidor activo en puerto ${PORT}`);
+  console.log(`✅ Servidor médico con Gemini activo`);
 });
