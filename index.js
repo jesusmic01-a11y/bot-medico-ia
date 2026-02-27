@@ -9,7 +9,7 @@ app.use(cors());
 app.use(express.static('.'));
 
 // Tu llave de Gemini
-const genAI = new GoogleGenerativeAI("AIzaSyD8sJ0bZHZDdFPUb-3jgjL784k4nwwHpgw");
+const genAI = new GoogleGenerativeAI("AIzaSyDNAPOruF3aszRV0xfyneTpSAG4m0S9hRY");
 
 // Ruta para el chat
 app.get('/', (req, res) => {
