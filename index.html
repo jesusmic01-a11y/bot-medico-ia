@@ -3,93 +3,117 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AmbuRoute Libre - Sistema de Emergencias</title>
+    <title>AmbuRoute - Buscador de Destinos</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
     
     <style>
         body { margin: 0; font-family: 'Segoe UI', sans-serif; }
-        #map { height: 100vh; width: 100vw; }
+        #map { height: 100vh; width: 100vw; z-index: 1; }
         
         .panel {
             position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
             z-index: 1000; background: white; padding: 15px; border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3); width: 90%; max-width: 350px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3); width: 90%; max-width: 400px;
         }
 
         h2 { margin: 0 0 10px 0; color: #d32f2f; font-size: 1.1rem; text-align: center; }
-        p { font-size: 0.8rem; color: #666; margin: 5px 0; }
         
-        button {
-            width: 100%; padding: 12px; background: #d32f2f; color: white;
-            border: none; border-radius: 8px; font-weight: bold; cursor: pointer;
-        }
-        
+        /* Estilo para que el buscador se vea bien */
+        .leaflet-control-geocoder { border-radius: 8px; width: 100% !important; margin: 0 !important; }
+        .leaflet-control-geocoder-form input { width: 100% !important; padding: 10px; border: 1px solid #ccc; border-radius: 5px; }
+
         #info {
-            margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee;
-            font-size: 0.9rem; display: none;
+            margin-top: 15px; padding: 10px; background: #f9f9f9; border-radius: 8px;
+            font-size: 0.9rem; display: none; text-align: center; border: 1px solid #eee;
+        }
+        .btn-reset {
+            width: 100%; margin-top: 10px; padding: 8px; background: #f44336;
+            color: white; border: none; border-radius: 5px; cursor: pointer;
         }
     </style>
 </head>
 <body>
 
     <div class="panel">
-        <h2>🚑 RASTREO DE AMBULANCIA</h2>
-        <p>Toca dos puntos en el mapa para marcar la ruta:</p>
-        <p>1. Lugar de recogida | 2. Hospital</p>
-        <button onclick="location.reload()">REINICIAR RUTA</button>
+        <h2>🚑 RUTA DE EMERGENCIA</h2>
+        <div id="search-container">
+            </div>
         
         <div id="info">
-            <b>Distancia:</b> <span id="dist"></span><br>
-            <b>Tiempo estimado:</b> <span id="time"></span>
+            <b>Distancia:</b> <span id="dist"></span> | 
+            <b>Tiempo:</b> <span id="time"></span>
         </div>
+        <button class="btn-reset" onclick="location.reload()">Limpiar Mapa</button>
     </div>
 
     <div id="map"></div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
 
     <script>
-        // Inicializar mapa centrado en Venezuela
-        const map = L.map('map').setView([10.4806, -66.9036], 12);
+        // 1. Iniciar mapa centrado en Caracas
+        const map = L.map('map').setView([10.4806, -66.9036], 13);
 
-        // Cargar las imágenes del mapa (Cortesía de OpenStreetMap)
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors'
+            attribution: '© OpenStreetMap'
         }).addTo(map);
 
         let controlRuta;
+        let puntoInicio = null;
 
-        // Función para manejar los clics en el mapa
-        map.on('click', function(e) {
-            if (!controlRuta) {
-                // Primer clic: Punto de la Ambulancia
-                controlRuta = L.Routing.control({
-                    waypoints: [ L.latLng(e.latlng.lat, e.latlng.lng) ],
-                    lineOptions: { styles: [{ color: '#d32f2f', weight: 6 }] },
-                    language: 'es',
-                    createMarker: function(i, wp) {
-                        return L.marker(wp.latLng, {
-                            draggable: true,
-                            icon: L.icon({
-                                iconUrl: i === 0 ? 'https://cdn-icons-png.flaticon.com/512/1042/1042339.png' : 'https://cdn-icons-png.flaticon.com/512/619/619153.png',
-                                iconSize: [35, 35]
-                            })
-                        });
-                    }
-                }).on('routesfound', function(e) {
-                    const routes = e.routes;
-                    const summary = routes[0].summary;
-                    document.getElementById('info').style.display = 'block';
-                    document.getElementById('dist').innerText = (summary.totalDistance / 1000).toFixed(2) + ' km';
-                    document.getElementById('time').innerText = Math.round(summary.totalTime / 60) + ' min';
-                }).addTo(map);
+        // 2. Agregar el buscador (Geocoder)
+        const geocoder = L.Control.geocoder({
+            defaultMarkGeocode: false,
+            placeholder: "Escribe el destino (ej: Hospital Vargas)...",
+            errorMessage: "No se encontró el lugar."
+        })
+        .on('markgeocode', function(e) {
+            const latlng = e.geocode.center;
+            
+            if (!puntoInicio) {
+                // Si no hay inicio, el primer lugar buscado es el inicio
+                puntoInicio = latlng;
+                L.marker(latlng).addTo(map).bindPopup("Punto de Recogida").openPopup();
+                map.setView(latlng, 15);
             } else {
-                // Segundo clic: Destino
-                const waypoints = controlRuta.getWaypoints();
-                controlRuta.setWaypoints([waypoints[0].latLng, L.latLng(e.latlng.lat, e.latlng.lng)]);
+                // Si ya hay inicio, el segundo lugar buscado traza la ruta
+                trazarRuta(puntoInicio, latlng);
+            }
+        })
+        .addTo(map);
+
+        // Mover el buscador al panel de arriba
+        document.getElementById('search-container').appendChild(geocoder.getContainer());
+
+        // 3. Función para trazar la ruta
+        function trazarRuta(inicio, fin) {
+            if (controlRuta) map.removeControl(controlRuta);
+
+            controlRuta = L.Routing.control({
+                waypoints: [inicio, fin],
+                lineOptions: { styles: [{ color: '#d32f2f', weight: 6 }] },
+                language: 'es',
+                routeWhileDragging: true
+            }).on('routesfound', function(e) {
+                const summary = e.routes[0].summary;
+                document.getElementById('info').style.display = 'block';
+                document.getElementById('dist').innerText = (summary.totalDistance / 1000).toFixed(2) + ' km';
+                document.getElementById('time').innerText = Math.round(summary.totalTime / 60) + ' min';
+            }).addTo(map);
+        }
+
+        // 4. Permitir también hacer clic en el mapa
+        map.on('click', function(e) {
+            if (!puntoInicio) {
+                puntoInicio = e.latlng;
+                L.marker(e.latlng).addTo(map).bindPopup("Inicio").openPopup();
+            } else {
+                trazarRuta(puntoInicio, e.latlng);
             }
         });
     </script>
