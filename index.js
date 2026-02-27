@@ -36,8 +36,7 @@ app.post('/chat', async (req, res) => {
     res.status(500).json({ respuesta: "Lo siento, tuve un problema con mi conexión. Intenta de nuevo." });
   }
 });
-
-// Encendido del servidor en Replit
-app.listen(3000, '0.0.0.0', () => {
-  console.log("✅ SERVIDOR LISTO Y VIGILADO EN PUERTO 3000");
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`✅ Servidor corriendo en el puerto ${PORT}`);
 });
