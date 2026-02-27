@@ -3,93 +3,95 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AmbuRoute - Sistema de Emergencias</title>
+    <title>AmbuRoute Libre - Sistema de Emergencias</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+    
     <style>
         body { margin: 0; font-family: 'Segoe UI', sans-serif; }
         #map { height: 100vh; width: 100vw; }
         
         .panel {
-            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
-            z-index: 10; background: white; padding: 20px; border-radius: 15px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.2); width: 90%; max-width: 400px;
+            position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+            z-index: 1000; background: white; padding: 15px; border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3); width: 90%; max-width: 350px;
         }
 
-        h2 { margin: 0 0 15px 0; color: #d32f2f; font-size: 1.2rem; display: flex; align-items: center; }
-        input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; margin-bottom: 10px; }
+        h2 { margin: 0 0 10px 0; color: #d32f2f; font-size: 1.1rem; text-align: center; }
+        p { font-size: 0.8rem; color: #666; margin: 5px 0; }
         
         button {
             width: 100%; padding: 12px; background: #d32f2f; color: white;
-            border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s;
+            border: none; border-radius: 8px; font-weight: bold; cursor: pointer;
         }
-        button:hover { background: #b71c1c; }
-
-        #status { margin-top: 15px; font-size: 0.9rem; color: #555; border-top: 1px solid #eee; padding-top: 10px; display: none; }
-        .data { font-weight: bold; color: #2c3e50; }
+        
+        #info {
+            margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee;
+            font-size: 0.9rem; display: none;
+        }
     </style>
 </head>
 <body>
 
     <div class="panel">
-        <h2>🚑 RUTA DE AMBULANCIA</h2>
-        <input id="origin" type="text" placeholder="Punto de recogida (o GPS actual)">
-        <input id="dest" type="text" placeholder="Hospital de destino">
-        <button onclick="trazarRuta()">CALCULAR TIEMPO DE RESPUESTA</button>
+        <h2>🚑 RASTREO DE AMBULANCIA</h2>
+        <p>Toca dos puntos en el mapa para marcar la ruta:</p>
+        <p>1. Lugar de recogida | 2. Hospital</p>
+        <button onclick="location.reload()">REINICIAR RUTA</button>
         
-        <div id="status">
-            Distancia: <span id="dist" class="data">--</span><br>
-            Tiempo estimado: <span id="time" class="data">--</span>
+        <div id="info">
+            <b>Distancia:</b> <span id="dist"></span><br>
+            <b>Tiempo estimado:</b> <span id="time"></span>
         </div>
     </div>
 
     <div id="map"></div>
 
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+
     <script>
-        let map, directionsService, directionsRenderer;
+        // Inicializar mapa centrado en Venezuela
+        const map = L.map('map').setView([10.4806, -66.9036], 12);
 
-        function initMap() {
-            directionsService = new google.maps.DirectionsService();
-            directionsRenderer = new google.maps.DirectionsRenderer();
-            
-            // Coordenadas iniciales (Venezuela - Caracas)
-            const venz = { lat: 10.4806, lng: -66.9036 };
-            
-            map = new google.maps.Map(document.getElementById("map"), {
-                zoom: 12,
-                center: venz,
-                disableDefaultUI: true
-            });
-            
-            directionsRenderer.setMap(map);
-        }
+        // Cargar las imágenes del mapa (Cortesía de OpenStreetMap)
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
 
-        async function trazarRuta() {
-            const origin = document.getElementById("origin").value;
-            const dest = document.getElementById("dest").value;
+        let controlRuta;
 
-            if (!dest) {
-                alert("Por favor ingresa un destino");
-                return;
+        // Función para manejar los clics en el mapa
+        map.on('click', function(e) {
+            if (!controlRuta) {
+                // Primer clic: Punto de la Ambulancia
+                controlRuta = L.Routing.control({
+                    waypoints: [ L.latLng(e.latlng.lat, e.latlng.lng) ],
+                    lineOptions: { styles: [{ color: '#d32f2f', weight: 6 }] },
+                    language: 'es',
+                    createMarker: function(i, wp) {
+                        return L.marker(wp.latLng, {
+                            draggable: true,
+                            icon: L.icon({
+                                iconUrl: i === 0 ? 'https://cdn-icons-png.flaticon.com/512/1042/1042339.png' : 'https://cdn-icons-png.flaticon.com/512/619/619153.png',
+                                iconSize: [35, 35]
+                            })
+                        });
+                    }
+                }).on('routesfound', function(e) {
+                    const routes = e.routes;
+                    const summary = routes[0].summary;
+                    document.getElementById('info').style.display = 'block';
+                    document.getElementById('dist').innerText = (summary.totalDistance / 1000).toFixed(2) + ' km';
+                    document.getElementById('time').innerText = Math.round(summary.totalTime / 60) + ' min';
+                }).addTo(map);
+            } else {
+                // Segundo clic: Destino
+                const waypoints = controlRuta.getWaypoints();
+                controlRuta.setWaypoints([waypoints[0].latLng, L.latLng(e.latlng.lat, e.latlng.lng)]);
             }
-
-            const request = {
-                origin: origin || { lat: 10.4806, lng: -66.9036 }, // Usa Caracas si el origen está vacío
-                destination: dest,
-                travelMode: 'DRIVING'
-            };
-
-            directionsService.route(request, (result, status) => {
-                if (status == 'OK') {
-                    directionsRenderer.setDirections(result);
-                    document.getElementById("status").style.display = "block";
-                    document.getElementById("dist").innerText = result.routes[0].legs[0].distance.text;
-                    document.getElementById("time").innerText = result.routes[0].legs[0].duration.text;
-                } else {
-                    alert("No pudimos encontrar la ruta. Intenta con nombres más específicos.");
-                }
-            });
-        }
+        });
     </script>
-
-    <script async defer src="https://maps.googleapis.com/maps/api/js?key=TU_API_KEY&callback=initMap"></script>
 </body>
 </html>
