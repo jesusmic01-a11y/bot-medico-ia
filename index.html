@@ -1,169 +1,80 @@
-<!doctype html>
-<html lang="es">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Asistente Médico IA</title>
-        <style>
-            /* Estilo general del cuerpo */
-            body {
-                font-family:
-                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-                    sans-serif;
-                background-color: #f0f2f5;
-                margin: 0;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                height: 100vh;
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Sistema de Ruta de Ambulancia</title>
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+    <meta charset="utf-8">
+    <style>
+      #map { height: 100%; }
+      html, body { height: 100%; margin: 0; padding: 0; font-family: sans-serif; }
+      #floating-panel {
+        position: absolute; top: 10px; left: 5%; z-index: 5;
+        background-color: #fff; padding: 10px; border: 1px solid #999;
+        text-align: center; border-radius: 8px; width: 80%;
+      }
+      input { width: 70%; padding: 8px; margin-bottom: 5px; }
+      button { padding: 8px 15px; background: #d32f2f; color: white; border: none; cursor: pointer; }
+    </style>
+  </head>
+  <body>
+    <div id="floating-panel">
+      <b>Ruta de Emergencia</b><br>
+      <input id="destination" type="text" placeholder="¿A dónde va la ambulancia? (Ej: Hospital Central)">
+      <button id="submit">Trazar Ruta</button>
+      <div id="info"></div>
+    </div>
+    <div id="map"></div>
+
+    <script>
+      function initMap() {
+        const directionsService = new google.maps.DirectionsService();
+        const directionsRenderer = new google.maps.DirectionsRenderer();
+        const map = new google.maps.Map(document.getElementById("map"), {
+          zoom: 14,
+          center: { lat: 10.4806, lng: -66.9036 }, // Caracas por defecto
+        });
+        directionsRenderer.setMap(map);
+
+        // Intentar obtener ubicación real (GPS)
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition((position) => {
+            const pos = { lat: position.coords.latitude, lng: position.coords.longitude };
+            map.setCenter(pos);
+            new google.maps.Marker({ position: pos, map: map, title: "Ambulancia" });
+          });
+        }
+
+        document.getElementById("submit").addEventListener("click", () => {
+          calculateAndDisplayRoute(directionsService, directionsRenderer);
+        });
+      }
+
+      function calculateAndDisplayRoute(directionsService, directionsRenderer) {
+        const dest = document.getElementById("destination").value;
+        if (!dest) return;
+
+        // Pedimos la ruta desde donde estamos (o una ubicación fija)
+        navigator.geolocation.getCurrentPosition((position) => {
+          directionsService.route(
+            {
+              origin: { lat: position.coords.latitude, lng: position.coords.longitude },
+              destination: dest,
+              travelMode: google.maps.TravelMode.DRIVING,
+            },
+            (response, status) => {
+              if (status === "OK") {
+                directionsRenderer.setDirections(response);
+                const route = response.routes[0].legs[0];
+                document.getElementById("info").innerHTML = 
+                  `Distancia: ${route.distance.text} | Tiempo: ${route.duration.text}`;
+              } else {
+                alert("No se pudo trazar la ruta: " + status);
+              }
             }
-
-            /* Contenedor del Chat */
-            #chat-container {
-                width: 90%;
-                max-width: 400px;
-                height: 80vh;
-                background: white;
-                border-radius: 15px;
-                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-                display: flex;
-                flex-direction: column;
-                overflow: hidden;
-            }
-
-            /* Cabecera Azul */
-            #header {
-                background: #007bff;
-                color: white;
-                padding: 20px;
-                text-align: center;
-                font-weight: bold;
-                font-size: 1.1em;
-            }
-
-            /* Área de Mensajes */
-            #messages {
-                flex: 1;
-                padding: 20px;
-                overflow-y: auto;
-                display: flex;
-                flex-direction: column;
-                gap: 15px;
-            }
-
-            /* Burbujas */
-            .msg {
-                max-width: 80%;
-                padding: 12px 16px;
-                border-radius: 18px;
-                font-size: 14px;
-                line-height: 1.4;
-            }
-            .bot {
-                background: #e9ecef;
-                color: #333;
-                align-self: flex-start;
-                border-bottom-left-radius: 2px;
-            }
-            .user {
-                background: #007bff;
-                color: white;
-                align-self: flex-end;
-                border-bottom-right-radius: 2px;
-            }
-
-            /* Área de entrada de texto */
-            #input-area {
-                display: flex;
-                padding: 15px;
-                border-top: 1px solid #eee;
-                background: white;
-            }
-            input {
-                flex: 1;
-                border: 1px solid #ddd;
-                border-radius: 25px;
-                padding: 10px 15px;
-                outline: none;
-                font-size: 14px;
-            }
-            button {
-                background: #007bff;
-                color: white;
-                border: none;
-                border-radius: 50%;
-                width: 40px;
-                height: 40px;
-                margin-left: 10px;
-                cursor: pointer;
-                font-weight: bold;
-            }
-        </style>
-    </head>
-    <body>
-        <div id="chat-container">
-            <div id="header">🩺 Asistente Médico Virtual</div>
-            <div id="messages">
-                <div class="msg bot">
-                    Hola, soy tu asistente de triaje. ¿Qué síntomas presentas
-                    hoy?
-                </div>
-            </div>
-            <div id="input-area">
-                <input
-                    type="text"
-                    id="user-input"
-                    placeholder="Escribe tu mensaje..."
-                />
-                <button onclick="enviarMensaje()">➔</button>
-            </div>
-        </div>
-
-        <script>
-            const messagesDiv = document.getElementById("messages");
-            const inputField = document.getElementById("user-input");
-
-            async function enviarMensaje() {
-                const texto = inputField.value.trim();
-                if (!texto) return;
-
-                // Mostrar mensaje del usuario
-                appendMessage(texto, "user");
-                inputField.value = "";
-
-                // Mostrar indicador de carga
-                const loadingMsg = appendMessage("Escribiendo...", "bot");
-
-                try {
-                    // Enviamos el mensaje al servidor (Replit)
-                    const response = await fetch("/chat", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ mensaje: texto }),
-                    });
-                    const data = await response.json();
-
-                    // Reemplazar "Escribiendo..." con la respuesta real de Gemini
-                    loadingMsg.innerText = data.respuesta;
-                } catch (error) {
-                    loadingMsg.innerText =
-                        "Error: No pude conectarme al servidor.";
-                }
-            }
-
-            function appendMessage(text, sender) {
-                const div = document.createElement("div");
-                div.className = `msg ${sender}`;
-                div.innerText = text;
-                messagesDiv.appendChild(div);
-                messagesDiv.scrollTop = messagesDiv.scrollHeight;
-                return div;
-            }
-
-            // Enviar con la tecla "Enter" del celular
-            inputField.addEventListener("keypress", (e) => {
-                if (e.key === "Enter") enviarMensaje();
-            });
-        </script>
-    </body>
+          );
+        });
+      }
+    </script>
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=TU_LLAVE_AQUI&callback=initMap"></script>
+  </body>
 </html>
