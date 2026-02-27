@@ -3,119 +3,288 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AmbuRoute - Buscador de Destinos</title>
-    
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
-    
+    <title>SERVIMEDIC | Despacho de Ambulancias</title>
     <style>
-        body { margin: 0; font-family: 'Segoe UI', sans-serif; }
-        #map { height: 100vh; width: 100vw; z-index: 1; }
+        :root {
+            --emergency: #d32f2f;
+            --accent: #25D366;
+            --call: #0288d1;
+            --success-gps: #2e7d32;
+            --text: #2c3e50;
+            --bg-light: #f8f9fa;
+        }
         
-        .panel {
-            position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
-            z-index: 1000; background: white; padding: 15px; border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3); width: 90%; max-width: 400px;
+        body { 
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+            background: linear-gradient(135deg, #fdf2f2 0%, #ffebee 100%); 
+            margin: 0; padding: 15px; min-height: 100vh; color: var(--text);
+        }
+        
+        .container { 
+            max-width: 450px; margin: 50px auto 20px auto; background: #ffffff; padding: 25px; 
+            border-radius: 35px; box-shadow: 0 20px 40px rgba(211, 47, 47, 0.15); 
+            border-top: 10px solid var(--emergency); 
+            position: relative;
         }
 
-        h2 { margin: 0 0 10px 0; color: #d32f2f; font-size: 1.1rem; text-align: center; }
-        
-        /* Estilo para que el buscador se vea bien */
-        .leaflet-control-geocoder { border-radius: 8px; width: 100% !important; margin: 0 !important; }
-        .leaflet-control-geocoder-form input { width: 100% !important; padding: 10px; border: 1px solid #ccc; border-radius: 5px; }
+        .logo-container {
+            width: 100px; height: 100px; background: white;
+            margin: -80px auto 10px auto; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            overflow: hidden; border: 4px solid white;
+        }
+        .logo-container img { width: 90%; height: 90%; object-fit: contain; }
 
-        #info {
-            margin-top: 15px; padding: 10px; background: #f9f9f9; border-radius: 8px;
-            font-size: 0.9rem; display: none; text-align: center; border: 1px solid #eee;
+        .header-box { text-align: center; margin-bottom: 20px; transition: 0.3s; }
+        h1 { color: var(--emergency); margin: 0; font-size: 26px; font-weight: 900; letter-spacing: -1px; }
+        
+        .emergency-badge {
+            background: var(--emergency); color: white; padding: 6px 15px;
+            border-radius: 50px; font-size: 11px; font-weight: bold; display: inline-block; margin-top: 8px;
         }
-        .btn-reset {
-            width: 100%; margin-top: 10px; padding: 8px; background: #f44336;
-            color: white; border: none; border-radius: 5px; cursor: pointer;
+        
+        .alert-active { animation: alert-flash 1s infinite; }
+        @keyframes alert-flash {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; transform: scale(1.02); }
+            100% { opacity: 1; }
         }
+        
+        label { display: block; margin-top: 18px; font-weight: 700; font-size: 0.72rem; text-transform: uppercase; color: #546e7a; }
+        
+        input, textarea, select { 
+            width: 100%; padding: 12px; margin-top: 6px; border: 2px solid #eef2f6; 
+            border-radius: 12px; box-sizing: border-box; font-size: 16px; background: #fdfdfd;
+        }
+
+        input:focus, select:focus { border-color: var(--call); outline: none; background: #fff; }
+        .p-roja { color: #d32f2f; font-weight: bold; }
+
+        .grid-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+
+        .check-box {
+            display: flex; align-items: center; background: var(--bg-light); padding: 10px;
+            border-radius: 12px; border: 1px solid #eef2f6; cursor: pointer; font-size: 0.82em;
+        }
+        .check-box input { width: auto; margin-right: 10px; transform: scale(1.2); }
+
+        .btn-location {
+            background-color: #fff5f5; color: var(--emergency); border: 2px dashed var(--emergency);
+            padding: 14px; margin-top: 15px; border-radius: 15px; cursor: pointer;
+            font-size: 14px; width: 100%; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        
+        .gps-success { background-color: var(--success-gps) !important; color: white !important; border: 2px solid var(--success-gps) !important; }
+
+        .actions { margin-top: 30px; display: flex; flex-direction: column; gap: 12px; }
+
+        .btn-main {
+            min-height: 65px; width: 100%; border-radius: 20px; font-size: 16px; font-weight: bold;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            text-decoration: none; border: none; cursor: pointer; transition: 0.2s;
+        }
+        .btn-whatsapp { background-color: var(--accent); color: white; box-shadow: 0 6px 15px rgba(37,211,102,0.3); }
+        .btn-call { background-color: var(--call); color: white; box-shadow: 0 6px 15px rgba(2, 136, 209, 0.3); }
+        .btn-call.urgent { background-color: var(--emergency); animation: alert-flash 1s infinite; }
+
+        .mun-label { font-size: 11px; font-weight: 500; opacity: 0.9; text-transform: uppercase; letter-spacing: 0.5px; }
+        #otro_destino_container { display: none; margin-top: 10px; }
+        .pulse { animation: pulse-red 2s infinite; }
+        @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(211, 47, 47, 0.4); } 70% { box-shadow: 0 0 0 12px rgba(211, 47, 47, 0); } 100% { box-shadow: 0 0 0 0 rgba(211, 47, 47, 0); } }
     </style>
 </head>
 <body>
 
-    <div class="panel">
-        <h2>🚑 RUTA DE EMERGENCIA</h2>
-        <div id="search-container">
-            </div>
-        
-        <div id="info">
-            <b>Distancia:</b> <span id="dist"></span> | 
-            <b>Tiempo:</b> <span id="time"></span>
-        </div>
-        <button class="btn-reset" onclick="location.reload()">Limpiar Mapa</button>
+<div class="container">
+    <div class="logo-container">
+        <img src="https://iili.io/qKhggsa.jpg" alt="Logo SERVIMEDIC">
     </div>
 
-    <div id="map"></div>
+    <div class="header-box" id="headerBox">
+        <h1>Servimedic / Emisalud</h1>
+        <div class="emergency-badge">🚨 SOLICITUD DE AMBULANCIA</div>
+    </div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
-    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+    <form id="medicForm">
+        <label>📍 Municipio del Evento</label>
+        <select id="municipio" onchange="actualizarContactos()">
+            <option value="Araure">Araure</option>
+            <option value="Acarigua">Acarigua</option>
+            <option value="Agua Blanca">Agua Blanca</option>
+            <option value="San Rafael de Onoto">San Rafael de Onoto</option>
+            <option value="Esteller (Píritu)">Esteller (Píritu)</option>
+            <option value="Turén">Turén</option>
+            <option value="Ospino">Ospino</option>
+            <option value="Guanare">Guanare</option>
+            <option value="Biscucuy">Biscucuy</option>
+            <option value="Chabasquén">Chabasquén</option>
+        </select>
 
-    <script>
-        // 1. Iniciar mapa centrado en Caracas
-        const map = L.map('map').setView([10.4806, -66.9036], 13);
+        <label>🚦 Prioridad (Triage)</label>
+        <select id="prioridad" onchange="actualizarPrioridad()">
+            <option value="🟢 PRIORIDAD BAJA (Estable)">🟢 PRIORIDAD BAJA (Estable)</option>
+            <option value="🟡 PRIORIDAD MEDIA (Urgencia)">🟡 PRIORIDAD MEDIA (Urgencia)</option>
+            <option value="🔴 PRIORIDAD ALTA (Emergencia Vital)" class="p-roja">🔴 PRIORIDAD ALTA (Emergencia Vital)</option>
+        </select>
 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap'
-        }).addTo(map);
+        <label>🚑 Equipo Requerido</label>
+        <div class="grid-options">
+            <label class="check-box"><input type="checkbox" id="paramedico"> Paramédico</label>
+            <label class="check-box"><input type="checkbox" id="medico"> Médico</label>
+            <label class="check-box"><input type="checkbox" id="enfermeria"> Enfermería</label>
+            <label class="check-box"><input type="checkbox" id="oxigeno"> Oxígeno</label>
+        </div>
 
-        let controlRuta;
-        let puntoInicio = null;
+        <label>Datos del Paciente</label>
+        <input type="text" id="nombre" placeholder="Nombre y Apellido" required>
+        <input type="tel" id="telefono_paciente" placeholder="Número de teléfono" required>
 
-        // 2. Agregar el buscador (Geocoder)
-        const geocoder = L.Control.geocoder({
-            defaultMarkGeocode: false,
-            placeholder: "Escribe el destino (ej: Hospital Vargas)...",
-            errorMessage: "No se encontró el lugar."
-        })
-        .on('markgeocode', function(e) {
-            const latlng = e.geocode.center;
-            
-            if (!puntoInicio) {
-                // Si no hay inicio, el primer lugar buscado es el inicio
-                puntoInicio = latlng;
-                L.marker(latlng).addTo(map).bindPopup("Punto de Recogida").openPopup();
-                map.setView(latlng, 15);
-            } else {
-                // Si ya hay inicio, el segundo lugar buscado traza la ruta
-                trazarRuta(puntoInicio, latlng);
-            }
-        })
-        .addTo(map);
+        <label>Dirección Punto de Partida</label>
+        <textarea id="direccion" rows="2" placeholder="Referencia cercana..." required></textarea>
+        
+        <button type="button" class="btn-location pulse" onclick="obtenerUbicacion()">📍 Vincular GPS (Urgente)</button>
+        <input type="hidden" id="link_mapa" value="No compartida">
 
-        // Mover el buscador al panel de arriba
-        document.getElementById('search-container').appendChild(geocoder.getContainer());
+        <label>Motivo del Traslado</label>
+        <input type="text" id="motivo" placeholder="Ej: Accidente, Dolor torácico...">
 
-        // 3. Función para trazar la ruta
-        function trazarRuta(inicio, fin) {
-            if (controlRuta) map.removeControl(controlRuta);
+        <label>🏥 Centro de Salud Destino</label>
+        <select id="destino" onchange="verificarOtroDestino()">
+            <option value="Hospital Casal Ramos">Hospital Casal Ramos</option>
+            <option value="Seguro Social (IVSS)">Seguro Social (IVSS)</option>
+            <option value="Hospital Materno Infantil">Hospital Materno Infantil</option>
+            <option value="OTRO">-- OTRO (Especificar) --</option>
+        </select>
+        <div id="otro_destino_container">
+            <input type="text" id="otro_destino" placeholder="Especifique centro asistencial...">
+        </div>
 
-            controlRuta = L.Routing.control({
-                waypoints: [inicio, fin],
-                lineOptions: { styles: [{ color: '#d32f2f', weight: 6 }] },
-                language: 'es',
-                routeWhileDragging: true
-            }).on('routesfound', function(e) {
-                const summary = e.routes[0].summary;
-                document.getElementById('info').style.display = 'block';
-                document.getElementById('dist').innerText = (summary.totalDistance / 1000).toFixed(2) + ' km';
-                document.getElementById('time').innerText = Math.round(summary.totalTime / 60) + ' min';
-            }).addTo(map);
-        }
+        <div class="actions">
+            <button type="button" class="btn-main btn-whatsapp" onclick="enviarWhatsApp()">
+                <span>Solicitar por WhatsApp</span>
+                <span id="label_wa" class="mun-label">DESPACHO ARAURE</span>
+            </button>
+            <a href="tel:+584121187321" id="btn_llamada" class="btn-main btn-call">
+                <span>📞 LLAMAR A DESPACHO</span>
+                <span id="label_municipio" class="mun-label">ARAURE</span>
+            </a>
+        </div>
+    </form>
+</div>
 
-        // 4. Permitir también hacer clic en el mapa
-        map.on('click', function(e) {
-            if (!puntoInicio) {
-                puntoInicio = e.latlng;
-                L.marker(e.latlng).addTo(map).bindPopup("Inicio").openPopup();
-            } else {
-                trazarRuta(puntoInicio, e.latlng);
-            }
-        });
-    </script>
+<script>
+const contactosMunicipios = {
+    "Araure":             { tel: "+584121187321", wa: "584245477702" },
+    "Acarigua":           { tel: "+584121187321", wa: "584245477702" },
+    "Agua Blanca":        { tel: "+584121187321", wa: "584245477702" },
+    "San Rafael de Onoto":{ tel: "+584121187321", wa: "584245477702" },
+    "Esteller (Píritu)":  { tel: "+584121187321", wa: "584245477702" },
+    "Turén":              { tel: "+584121187321", wa: "584245477702" },
+    "Ospino":             { tel: "+584145528788", wa: "584145528788" },
+    "Guanare":            { tel: "+584145528788", wa: "584145528788" },
+    "Biscucuy":           { tel: "+584145528788", wa: "584145528788" },
+    "Chabasquén":         { tel: "+584145528788", wa: "584145528788" }
+};
+
+function actualizarContactos() {
+    const mun = document.getElementById('municipio').value;
+    const config = contactosMunicipios[mun];
+    document.getElementById('btn_llamada').href = "tel:" + config.tel;
+    document.getElementById('label_municipio').innerText = mun.toUpperCase();
+    document.getElementById('label_wa').innerText = "DESPACHO " + mun.toUpperCase();
+}
+
+function actualizarPrioridad() {
+    const prio = document.getElementById('prioridad').value;
+    const header = document.getElementById('headerBox');
+    const btnCall = document.getElementById('btn_llamada');
+    
+    // Resetear checkboxes
+    document.getElementById('paramedico').checked = false;
+    document.getElementById('medico').checked = false;
+    document.getElementById('enfermeria').checked = false;
+    document.getElementById('oxigeno').checked = false;
+
+    if (prio.includes("🟡")) {
+        header.classList.remove('alert-active');
+        btnCall.classList.remove('urgent');
+        document.getElementById('paramedico').checked = true;
+    } 
+    else if (prio.includes("🔴")) {
+        header.classList.add('alert-active');
+        btnCall.classList.add('urgent');
+        document.getElementById('medico').checked = true;
+        document.getElementById('enfermeria').checked = true;
+        document.getElementById('oxigeno').checked = true;
+    } 
+    else {
+        header.classList.remove('alert-active');
+        btnCall.classList.remove('urgent');
+    }
+}
+
+function verificarOtroDestino() {
+    const d = document.getElementById('destino');
+    document.getElementById('otro_destino_container').style.display = (d.value === "OTRO") ? "block" : "none";
+}
+
+function obtenerUbicacion() {
+    const btn = document.querySelector('.btn-location');
+    if (!navigator.geolocation) return alert("GPS no compatible.");
+    btn.innerText = "⌛ Localizando...";
+    navigator.geolocation.getCurrentPosition((pos) => {
+        const lat = pos.coords.latitude; 
+        const lon = pos.coords.longitude;
+        // CORRECCIÓN DEL ENLACE DE GOOGLE MAPS
+        document.getElementById('link_mapa').value = `https://www.google.com/maps?q=${lat},${lon}`;
+        btn.innerHTML = "✅ UBICACIÓN VINCULADA"; 
+        btn.classList.add('gps-success');
+        btn.classList.remove('pulse');
+    }, () => {
+        alert("No se pudo obtener la ubicación. Active su GPS.");
+        btn.innerText = "📍 Vincular GPS (Urgente)";
+    }, { enableHighAccuracy: true });
+}
+
+function enviarWhatsApp() {
+    const mun = document.getElementById('municipio').value;
+    const config = contactosMunicipios[mun];
+    const nom = document.getElementById('nombre').value;
+    const tel = document.getElementById('telefono_paciente').value;
+    const dir = document.getElementById('direccion').value;
+    const map = document.getElementById('link_mapa').value;
+    const prio = document.getElementById('prioridad').value;
+    const mot = document.getElementById('motivo').value || "No especificado";
+    
+    let des = document.getElementById('destino').value;
+    if (des === "OTRO") des = document.getElementById('otro_destino').value || "No especificado";
+
+    if(!nom || !tel || !dir) return alert("Complete Nombre, Teléfono y Dirección.");
+
+    // Construcción dinámica de equipo solicitado
+    let equipo = [];
+    if(document.getElementById('paramedico').checked) equipo.push("Paramédico");
+    if(document.getElementById('medico').checked) equipo.push("Médico");
+    if(document.getElementById('enfermeria').checked) equipo.push("Enfermería");
+    if(document.getElementById('oxigeno').checked) equipo.push("Oxígeno");
+    const equipoTxt = equipo.length > 0 ? equipo.join(", ") : "Básico";
+
+    const msj = `*🚨 SOLICITUD DE AMBULANCIA 🚨*%0A` +
+                `*MUNICIPIO:* ${mun.toUpperCase()}%0A` +
+                `*PRIORIDAD:* ${prio}%0A` +
+                `--------------------------------%0A` +
+                `*PACIENTE:* ${nom}%0A` +
+                `*TELÉFONO:* ${tel}%0A` +
+                `*DIRECCIÓN:* ${dir}%0A` +
+                `*MOTIVO:* ${mot}%0A` +
+                `*DESTINO:* ${des}%0A%0A` +
+                `*EQUIPO:* ${equipoTxt}%0A%0A` +
+                `*UBICACIÓN GPS:* ${map}%0A%0A` +
+                `_Enviado desde el Despacho SERVIMEDIC_`;
+
+    window.open(`https://api.whatsapp.com/send?phone=${config.wa}&text=${msj}`, '_blank');
+}
+</script>
 </body>
 </html>
