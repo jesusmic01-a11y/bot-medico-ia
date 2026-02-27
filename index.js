@@ -9,7 +9,7 @@ app.use(cors());
 app.use(express.static('.'));
 
 // LLAVE DE GEMINI (Asegúrate de que sea una llave nueva creada con VPN si es posible)
-const genAI = new GoogleGenerativeAI("AIzaSyD8sJ0bZHZDdFPUb-3jgjL784k4nwwHpgw");
+const genAI = new GoogleGenerativeAI("AIzaSyAN6Fwg6XywM-qgz1-F4vi-BDTrp1Wy2SU");
 
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
